@@ -59,6 +59,7 @@ library("janitor")
 tt <- read.csv("datas/HDJFinal.csv", as.is = FALSE, header = TRUE)
 #
 tt <- clean_names(tt)
+summary(tt)
 ```
 
 # Description de la population
