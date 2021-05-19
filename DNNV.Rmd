@@ -1,0 +1,66 @@
+---
+title: "DNNV"
+subtitle: "Quelques chiffres"
+author: "Philippe MICHEL"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    toc: yes
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: true
+    theme: lumen
+    anchor_sections: TRUE
+  html_notebook:
+    fig_caption: yes
+    theme: spacelab
+  pdf_document:
+    includes:
+      in_header: tete.tex
+    keep_tex: yes
+    latex_engine: lualatex
+    toc: yes  
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include= FALSE}
+#knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r info}
+rm(list=ls())
+library("prettydoc")
+library("forcats")
+library("epiDisplay")
+library("factoextra")
+library("atable")
+library("knitr")
+library("finalfit")
+library("Hmisc")
+library("xtable")
+library("viridis")
+library("stringr")
+library("ggplot2")
+library("kableExtra")
+library("lubridate")
+library("table1")
+library("dplyr")
+library("ggthemes")
+library("janitor")
+# sessionInfo()
+```
+
+```{r import}
+tt <- read.csv("datas/HDJFinal.csv", as.is = FALSE, header = TRUE)
+#
+tt <- clean_names(tt)
+```
+
+# Description de la population
+
+La base de donnée comprends `r dim(tt)[1]` cas pour `r dim(tt)[2]-1` variables.
