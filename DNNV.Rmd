@@ -28,8 +28,8 @@ editor_options:
 ---
 
 ```{r setup, include= FALSE}
-#knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+#knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 ```{r info}
@@ -56,12 +56,135 @@ library("janitor")
 ```
 
 ```{r import}
-tt <- read.csv("datas/HDJFinal.csv", as.is = FALSE, header = TRUE)
+tt <- read.csv("datas/dnnv.csv", as.is = FALSE, header = TRUE)
 #
 tt <- clean_names(tt)
-summary(tt)
+## toute intervention
+tt$ni_m4_rec <- fct_recode(tt$ni_m4,
+                           "Intervention" = "Intervention de niveau 1",
+                           "Intervention" = "Intervention de niveau 2")
+tt$ni_m4_rec <- fct_explicit_na(tt$ni_m4_rec, "Pas d'intervention")
+#
+tt$ni_m12_rec <- fct_recode(tt$ni_m12,
+                            "Intervention" = "Intervention de niveau 1",
+                            "Intervention" = "Intervention de niveau 2")
+tt$ni_m12_rec <-
+  fct_explicit_na(tt$ni_m12_rec, "Pas d'intervention")
+#
+tt$ni_m24_rec <- fct_recode(tt$ni_m24,
+                            "Intervention" = "Intervention de niveau 1",
+                            "Intervention" = "Intervention de niveau 2")
+tt$ni_m24_rec <-
+  fct_explicit_na(tt$ni_m24_rec, "Pas d'intervention")
+
+tt <- tt %>%
+  mutate(intervention = factor(ifelse ((ni_m4_rec == "Intervention") |
+                                            (ni_m12_rec == "Intervention") |
+                                            (ni_m24_rec == "Intervention"),
+                                          "oui",
+                                          "non"
+  )))
+# Intervention de niveau 2
+## Recodage de tt$ni en tt$nirec
+tt$ni_m4_2 <- fct_recode(tt$ni_m4,
+                           "Pas d'intervention" = "Intervention de niveau 1",
+                           "Intervention" = "Intervention de niveau 2")
+tt$ni_m4_2 <- fct_explicit_na(tt$ni_m4_2, "Pas d'intervention")
+#
+tt$ni_m12_2 <- fct_recode(tt$ni_m12,
+                            "Pas d'intervention" = "Intervention de niveau 1",
+                            "Intervention" = "Intervention de niveau 2")
+tt$ni_m12_2 <-
+  fct_explicit_na(tt$ni_m12_2, "Pas d'intervention")
+#
+tt$ni_m24_2 <- fct_recode(tt$ni_m24,
+                            "Pas d'intervention" = "Intervention de niveau 1",
+                            "Intervention" = "Intervention de niveau 2")
+tt$ni_m24_2 <-
+  fct_explicit_na(tt$ni_m24_2, "Pas d'intervention")
+
+tt <- tt %>%
+  mutate(intervention2 = factor(ifelse ((ni_m4_2 == "Intervention") |
+                                            (ni_m12_2 == "Intervention") |
+                                            (ni_m24_2 == "Intervention"),
+                                          "oui",
+                                          "non"
+  )))
 ```
 
 # Description de la population
 
-La base de donnée comprends `r dim(tt)[1]` cas pour `r dim(tt)[2]-1` variables.
+La base de donnée comprends `r dim(tt)[1]` cas pour `r dim(tt)[2]-1` variables résumées dans les tableaux suivants. 
+
+```{r tabd}
+table1(
+  ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie,
+  data = tt,
+  overall  = "",
+  caption = "À l'inclusion"
+)
+
+table1(
+  ~ ac_m4 + pec_m4 + ni_m4,
+  data = tt,
+  overall  = "",
+  caption = "Visite à M4"
+)
+
+table1(
+  ~ ac_m12 + pec_m12 + ni_m12,
+  data = tt,
+  overall  = "",
+  caption = "Visite à M12"
+)
+
+table1(
+  ~ ac_m24 + pec_m24 + ni_m24,
+  data = tt,
+  overall  = "",
+  caption = "Visite à M24"
+)
+```
+
+# Critère principal
+
+```{r eciual}
+zz <- chisq.test(tt$rciu,is.na(tt$ni_m24))
+nnz <- round(zz$p.value,2)
+```
+
+
+Le critère principal est la réalisation d'une intervention lors d'une des trois visites. le grand nombre de données maquantes lors de la visite M24 pose problème. Il a été décidé de en pas exclure ces cas pour pouvoir comptabiliser les réslutats des visites précédentes.  Néanmoins ce calcul n'est possible que si les données manquantes sont réparties aléatoirement sur tous les cas quelle que soit la pathologie initiale en particulier RCIU ou non. On trouve p = `r nnz`, il n'y a donc pas de lien entre la présence d'une RCIU &  les données manquantes à 24 mois. 
+
+# RCIU
+
+## Toute intervention
+
+```{r rciut}
+table1(
+ ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie | intervention,
+  data = tt,
+  overall  = "total",
+  caption = "Toute intervention lors d'une des trois consultations"
+)
+
+
+cc(tt$intervention,tt$rciu)
+```
+
+On ne met pas en évidence de lien entre un RCIU & une intervention lors des trois consultations (Manque de puissance ?) mais la tendance va dans le sens d'une augmentation du nombre d'interventions pour les enfants ayant eu un RCIU.
+
+## Intervention de niveau 2
+le très faible nombre d'intervention de bniveau 2 entraîne un manque de puissance majeur. 
+
+```{r rciu2}
+table1(
+ ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie | intervention2,
+  data = tt,
+  overall  = "total",
+  caption = "Intervention de type 2lors d'une des trois consultations"
+)
+
+cc(tt$intervention2,tt$rciu)
+```
+
