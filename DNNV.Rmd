@@ -38,6 +38,7 @@ library("prettydoc")
 library("forcats")
 library("epiDisplay")
 library("factoextra")
+library(missMDA)
 library("atable")
 library("knitr")
 library("finalfit")
@@ -52,8 +53,11 @@ library("table1")
 library("dplyr")
 library("ggthemes")
 library("janitor")
+library(tidyr)
+library("plotly")
 # sessionInfo()
 ```
+
 
 ```{r import}
 tt <- read.csv("datas/dnnv.csv", as.is = FALSE, header = TRUE)
@@ -145,6 +149,36 @@ table1(
   caption = "Visite à M24"
 )
 ```
+
+<BR>
+
+```{r plot1}
+zz <- tt[,c(1,8,11,14,18)]
+zzx <- zz %>% 
+  pivot_longer(c(ni_m4 , ni_m12 ,ni_m24), values_to = "intervention")
+zzx$name <- as_factor(zzx$name)
+zzx <- na.omit(zzx)
+zzx$intervention <- fct_relevel(zzx$intervention,"Pas d'intervention") 
+pp <- zzx %>% 
+  ggplot() + 
+  aes( x= name, fill = intervention ) + 
+  geom_bar(stat = "count") +
+       labs(title = "Interventions<BR> sur les trois consultations",
+             y = "n"
+             ) +
+     theme_light() + 
+     theme(plot.title = element_text(size=16, face="bold"), 
+                axis.title.x =  element_blank(), 
+                axis.title.y = element_text(size=12),
+                axis.text.x = element_text(size=12),
+                axis.text.y = element_text(size=12),
+                legend.position = "right" 
+               ) +
+  scale_x_discrete(breaks=c("ni_m4"  "ni_m12" "ni_m24"),
+        labels=c("mois 4", "mois 12", "mois 24"))
+ggplotly(pp, tooltip = c("all"))
+```
+
 
 # Critère principal
 
