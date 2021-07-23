@@ -1,30 +1,33 @@
 ---
 title: "DNNV"
-subtitle: "Quelques chiffres"
 author: "Philippe MICHEL"
 date: "`r Sys.Date()`"
 output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    theme: lumen
+    anchor_sections: yes
+  word_document:
+    toc: yes
+  html_notebook:
+    fig_caption: yes
+    theme: spacelab
   prettydoc::html_pretty:
     theme: architect
     highlight: github
     toc: yes
-  html_document:
-    df_print: paged
-    toc: yes
-    toc_float: true
-    theme: lumen
-    anchor_sections: TRUE
-  html_notebook:
-    fig_caption: yes
-    theme: spacelab
   pdf_document:
-    includes:
-      in_header: tete.tex
     keep_tex: yes
     latex_engine: lualatex
-    toc: yes  
+    toc: yes
+subtitle: Quelques chiffres
 editor_options:
   chunk_output_type: console
+always_allow_html: true
+bibliography: stat.bib
+csl: jama.csl
 ---
 
 ```{r setup, include= FALSE}
@@ -44,25 +47,61 @@ library("knitr")
 library("finalfit")
 library("Hmisc")
 library("xtable")
-library("viridis")
 library("stringr")
 library("ggplot2")
 library("kableExtra")
 library("lubridate")
-library("table1")
 library("dplyr")
 library("ggthemes")
 library("janitor")
 library(tidyr)
 library(ggsci)
+library(baseph)
+library(readr)
 library("plotly")
 # sessionInfo()
 ```
 
+```{r barconf}
+barconf <- function(varx,testv,tit="titre"){
+                                        # Création de la table
+  nom <- levels(varx)
+tta <- as.data.frame.matrix(table(testv,varx)) # table de contingence
+                                        # Calcul des % & des bornes de l'IC
+    gg <- map_dbl(tta, function(x) 100*x[1]/sum(x))
+    tainf <- map_dbl(tta, function(x) asin(sqrt(x[1]/sum(x)-1/(2*sum(x))))-1.96/(2*sqrt(sum(x))))
+    tasup <- map_dbl(tta, function(x) asin(sqrt(x[1]/sum(x)+1/(2*sum(x))))+1.96/(2*sqrt(sum(x))))
+    gb <- 100*sin(tainf)^2
+gh <- 100*sin(tasup)^2
+# On regroupe ces variables dans un data.frame
+ggdf <- data.frame(nom,gg,gb,gh)
+# On attaque le graphique
+ggplot(ggdf, aes(x=nom, y=gg, fill=nom)) +
+geom_bar(stat="identity") +
+geom_errorbar(aes(ymin=gb, ymax=gh), width=.8,size = 0.4) +
+labs(title = tit,
+                y="%"
+                ) +
+     theme_light() + 
+     scale_fill_jama() +
+     theme(plot.title = element_text(size=16, face="bold"), 
+                axis.title.x =  element_blank(), 
+                axis.title.y = element_text(size=12),
+                axis.text.x = element_text(size=12),
+                axis.text.y = element_text(size=12),
+                legend.title = element_blank(), 
+                legend.position = "none" 
+               ) +
+scale_x_discrete(limits=levels(varx)) 
+ 
+}
+```
+
+
 
 ```{r import}
-tt <- read.csv("datas/dnnv.csv", as.is = FALSE, header = TRUE)
-#
+tt <- read_csv("datas/dnnv.csv", locale = locale("fr")) 
+  tt <-   mutate_if(tt, is.character, as.factor) 
 tt <- clean_names(tt)
 ## toute intervention
 tt$ni_m4_rec <- fct_recode(tt$ni_m4,
@@ -115,6 +154,7 @@ tt <- tt %>%
                                           "oui",
                                           "non"
   )))
+#
 ```
 
 # Description de la population
@@ -122,36 +162,15 @@ tt <- tt %>%
 La base de donnée comprends `r dim(tt)[1]` cas pour `r dim(tt)[2]-1` variables résumées dans les tableaux suivants. 
 
 ```{r tabd}
-table1(
-  ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie,
-  data = tt,
-  overall  = "",
-  caption = "À l'inclusion"
-)
+tab1ph(tt[,c(2:8)], titre = "À l'inclusion", label = "tab1")
 
-table1(
-  ~ ac_m4 + pec_m4 + ni_m4,
-  data = tt,
-  overall  = "",
-  caption = "Visite à M4"
-)
+tab1ph(tt[,c(9:11)], titre = "Visite à M4", label = "tab2")
 
-table1(
-  ~ ac_m12 + pec_m12 + ni_m12,
-  data = tt,
-  overall  = "",
-  caption = "Visite à M12"
-)
+tab1ph(tt[,c(12:14)], titre = "Visite à M12", label = "tab3")
 
-table1(
-  ~ ac_m24 + pec_m24 + ni_m24,
-  data = tt,
-  overall  = "",
-  caption = "Visite à M24"
-)
+tab1ph(tt[,c(16:18)], titre = "Visite à M24", label = "tab4")
 ```
 
-<BR>
 
 ```{r plot1}
 zz <- tt[,c(1,8,11,14,18)]
@@ -162,7 +181,7 @@ zzx <- na.omit(zzx)
 zzx$intervention <- fct_relevel(zzx$intervention,"Pas d'intervention") 
 pp <- zzx %>% 
   ggplot() + 
-  aes( x= name, fill = fct_rev(intervention) ) + 
+  aes( x= name, fill = fct_rev(intervention)) + 
   geom_bar(stat = "count") +
        labs(title = "Interventions",
              y = "n"
@@ -176,9 +195,7 @@ pp <- zzx %>%
                 axis.text.y = element_text(size=12),
                 legend.title = element_blank(), 
                 legend.position = "right" 
-               ) +
- scale_x_discrete(breaks=c("ni_m4" ,"ni_m12" ,"ni_m24"), labels=c("mois 4", "mois 12", "mois 24"))
-ggplotly(pp, tooltip = c("all"))
+               ) 
 ```
 
 
@@ -197,12 +214,8 @@ Le critère principal est la réalisation d'une intervention lors d'une des troi
 ## Toute intervention
 
 ```{r rciut}
-table1(
- ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie | intervention,
-  data = tt,
-  overall  = "total",
-  caption = "Toute intervention lors d'une des trois consultations"
-)
+qq <- tabcph(tt[,c(6,10,13,17)],rciu)
+
 
 
 cc(tt$intervention,tt$rciu)
@@ -211,16 +224,232 @@ cc(tt$intervention,tt$rciu)
 On ne met pas en évidence de lien entre un RCIU & une intervention lors des trois consultations (Manque de puissance ?) mais la tendance va dans le sens d'une augmentation du nombre d'interventions pour les enfants ayant eu un RCIU.
 
 ## Intervention de niveau 2
-le très faible nombre d'intervention de bniveau 2 entraîne un manque de puissance majeur. 
+le très faible nombre d'intervention de niveau 2 entraîne un manque de puissance majeur. 
 
 ```{r rciu2}
-table1(
- ~ sexe + terme_n + poids_g + poids_p + rciu + imagerie_neuro + pathologie | intervention2,
-  data = tt,
-  overall  = "total",
-  caption = "Intervention de type 2lors d'une des trois consultations"
-)
+tabcph(tt[,c(2:8,26)], intervention2, "Intervention de type 2 lors d'une des trois consultations", export = FALSE)
 
 cc(tt$intervention2,tt$rciu)
 ```
 
+Seule l'imagerie neurologique semble liée à la réalisation d'une intervention de type 2 lors d'une des trois visites. 
+
+```{r interg}
+zz <- data_frame(tt$imagerie_neuro, tt$intervention2)
+names(zz) <- c("imagerie","intervention2")
+zz$intervention2 <- fct_relevel(zz$intervention2,"Autre", after = 3)
+tt %>% 
+  mutate(imagerie_neuro = fct_reorder(imagerie_neuro, desc(intervention2))) %>%
+ggplot() +
+  aes(x = imagerie_neuro, fill = intervention2, y =1, alpha = intervention2) +
+  geom_bar(stat = "identity", position = "fill") +
+         labs(title = "Interventions niveau 2 selon les lésions cérébrales",
+             y = "n"
+             ) +
+     theme_light() + 
+     scale_fill_jama() +
+     theme(plot.title = element_text(size=16, face="bold"), 
+                axis.title.x =  element_blank(), 
+                axis.title.y = element_blank(),
+                axis.text.x = element_text(size=12, angle = 45, hjust = 1),
+                axis.text.y = element_text(size=12),
+                legend.title = element_blank(), 
+                legend.position = "none" 
+               ) 
+```
+
+# Pathologie & intervention
+
+On étudie le lien entre la pathologie à la naissance & la réalisation d'une intervention .
+
+## Toute intervention
+
+```{r path1g}
+zz <- table(tt$intervention, tt$pathologie)
+zz <- prop.table(zz,2)[2,]
+zz <- data.frame(levels(tt$pathologie),zz)
+names(zz) <-  c("pathologie", "intervention")
+ggplot(zz) +
+  aes(x = pathologie, y = intervention, fill = pathologie) +
+  geom_bar(stat = "identity") +
+         labs(title = "Interventions  selon la pathologie",
+             y = "n"
+             ) +
+     theme_light() + 
+     scale_fill_jama() +
+     theme(plot.title = element_text(size=16, face="bold"), 
+                axis.title.x =  element_blank(), 
+                axis.title.y = element_blank(),
+                axis.text.x = element_text(size=12),
+                axis.text.y = element_text(size=12),
+                legend.title = element_blank(), 
+                legend.position = "none" 
+               ) 
+
+```
+
+```{r path1c}
+
+cq <- chisq.test(tt$intervention,tt$pathologie, correct = FALSE)
+pcq <- beaup(cq$p.value)
+```
+
+On ne met pas en évidence de lien entre la pathologie & une intervention, quelle qu'elle soit (p = `r pcq`).
+
+## Intervention niveau 2
+
+```{r path2g}
+barconfph(tt$pathologie,tt$intervention2, tit = "Intervention niveau 2 selon la pathologie néonatale")
+```
+
+```{r path2c}
+
+cq <- chisq.test(tt$intervention2,tt$pathologie, correct = TRUE)
+pcq <- beaup(cq$p.value)
+```
+
+On ne met pas en évidence de lien entre la pathologie & une intervention niveau 2, quelle qu'elle soit (p = `r pcq`).
+
+# Imagerie & intervention type 2
+
+La donnée *imagerie_neuro* n' a été remplie que pour 123 patients.
+
+```{r imag1}
+zz <- data.frame(tt$imagerie_neuro,tt$intervention2)
+zz <- na.omit(zz)
+names(zz) <- c("imagerie", "intervention")
+zz$intervention <- relevel(zz$intervention,"oui")
+zz$imagerie <- as.factor(ifelse(zz$imagerie %in% c("HIVBG", "HIVHG","HIVBG + LMPV","HIVHG + HESB", "HIVHG + LMPV"),"HIVBG/HIVHG","autre"))
+cc(zz$intervention,zz$imagerie)
+czz <- chisq.test(zz$intervention, zz$imagerie)
+pzz <- beaup(czz$p.value)
+```
+
+Il ne semble pas exister de lien entre la présence d'HIVBG ou d'HIVHG sur l'imagerie & une intervention de type 2 (p = `r pzz`).
+
+### Toute lésion cérébrale
+
+On regarde le lien entre la présence d'une lésion cétrébrale & la réalisation d'une intervention de type 2. 
+
+```{r les2}
+les <- !is.na(tt$imagerie_neuro)
+sles <- sum(les)
+ples <- round(sles*100/length(les),1)
+ales <- paste0(sles, " (",ples,"%)")
+cc(tt$intervention2,les)
+cles <- chisq.test(tt$intervention2,les)
+vles <- beaup(cles$p.value)
+```
+`r ales` enfants avaient une lésion cérébrale. il existe un lin avaec la réalisation d'une intervention de type 2 (`r vles`)
+# Intervention précoce
+
+Vu le faible nombre de consultations intermédiaires, on regardera uniquement si une intervention de niveau 1 à M4 réduit le nombre d'intervention à M 24.
+
+## Interventions de niveau 2
+On exclu les patients ayant bénéficié d'une intervention de type 2 à M4 & on compare aucune intervention vs intervention type 1 à M4 pour une intervention de type 2 à M24.
+
+```{r interp1}
+zz <- subset(tt, tt$pec_m4 != "CAMSP")
+zz$imagerie <- as.factor(ifelse(zz$imagerie_neuro %in% c("HIVBG", "HIVHG","HIVBG + LMPV","HIVHG + HESB", "HIVHG + LMPV"),"HIVBG/HIVHG","autre"))
+zz$pec_m4 <- factor(zz$pec_m4)
+zz$interventionM4 <- as.factor(ifelse(zz$pec_m4=="Aucune","non","intervention M4"))
+
+zz$im24 <- as.factor(ifelse(zz$pec_m24=="Aucune","non","intervention M24"))
+ tabcph(zz[,c(28,26)],interventionM4,titre = "Intervention type 2 à M24 selon la réalisation d'un intervention type 1 à M4", export = FALSE)
+```
+les patients ayant eu une intervention de type 1 à M4 n'ont pas plus de chance d'avoir une intervention à M24. On tente de pr&ciqser l'impact des principaux facteurs de risque possibles même si aucun ne semble significatif en univarié. 
+
+```{r m24reg}
+ll <- glm(intervention2~ interventionM4 + imagerie+terme_n+ rciu, data = zz, family = "binomial")
+tabmmph(ll, titre = "Intervention de type 2 à m24, facteurs prédictifs (Analyse multivariée)")
+```
+Après ajustement sur les principaux facteurs de risque, la réalisation d'une intervention de type 2 ne semble toujours pas liée à la prise en charge à M4. 
+
+## Toute intervention
+ 
+On exclu les patients ayant bénéficié d'une intervention de type 2 à M4 & on compare aucune intervention vs intervention type 1 à M4 pour toute intervention à M24.
+
+```{r m24t}
+tt$inter24 <- as.factor(ifelse(tt$pec_m24=="Aucune","Aucune","intervention M24" ))
+zz <- subset(tt, tt$pec_m4 != "CAMSP")
+zz$imagerie <- as.factor(ifelse(zz$imagerie_neuro %in% c("HIVBG", "HIVHG","HIVBG + LMPV","HIVHG + HESB", "HIVHG + LMPV"),"HIVBG/HIVHG","autre"))
+zz$pec_m4 <- factor(zz$pec_m4)
+zz$interventionM4 <- as.factor(ifelse(zz$pec_m4=="Aucune","non","intervention M4"))
+
+zz$im24 <- as.factor(ifelse(zz$pec_m24=="Aucune","non","intervention M24"))
+ tabcph(zz[,c(29,28)],interventionM4,titre = "Toute intervention à M24 selon la réalisation d'un intervention type 1 à M4", export = FALSE)
+```
+ 
+```{r m24reg2}
+ll <- glm(im24~ interventionM4 + imagerie+terme_n+ rciu, data = zz, family = "binomial")
+tabmmph(ll, titre = "Toute intervention à m24, facteurs prédictifs (Analyse multivariée)")
+```
+
+La réalisation d'une intervention à M24(tous niveaux) semble liée à l'intervention niveau I à M4 même après ajustement sur les principaux facteurs de risque.
+
+#RCIU, terme & sexe
+
+# RCIU & terme
+
+```{r rts1}
+in2 <- function(aa){
+  bb <- aa == "CAMSP"
+  bb[is.na(bb)] <- 0
+  return(bb)
+}
+rm(zz)
+intervention_2 <- as.factor(ifelse((in2(tt$pec_m4) + in2(tt$pec_m12)+ in2(tt$pec_m24))>0,"intervention","Pas d'intervention"))
+risque <- as.factor(ifelse(tt$rciu == "RCIU" & tt$terme_n<33, "élevé", "faible"))
+zz <- data.frame(intervention_2, risque, tt$sexe)
+names(zz)[3] <- "Sexe"
+zz <- na.omit(zz)
+risn <- length(risque[risque=="élevé"])
+#
+tabcph(zz[,1:2],risque, titre = "RCIU & grande préamturité  vs intervention de type 2")
+```
+
+
+Le facteur prédictif d'une intervention de niveau 2 (toutes consultations confondues) étudié ici est la présence d'un RCIU & un terme < 33 semaine. `r risn` enfants présentent ce double critère. Aucun d'entre eux n' reçu une intervention niveau 2.
+
+## Sexe
+
+```{r sexe}
+tabcph(zz[,c(1,3)],Sexe, titre = "RCIU & grande préamturité  vs intervention de type 2")
+rm(zz)
+```
+Le sexe de l'enfant ne semble pas lié à la prise en charge.
+
+# Perdus de vue
+Est considéré comme perdu de vue tout enfant qui ne s'est pas présenté à deux consultations successives. Les patients pris en charge en CAMSP (intervention niveau 2) ne sont pas considérés comme perdus de vue pour les consultations suivantes. 
+
+```{r pdv}
+pv1 <- is.na(tt$pec_m4)*1
+pv2 <- is.na(tt$pec_m12)*2
+pv3 <- is.na(tt$pec_m24)*4
+pv2[tt$pec_m4=="CAMSP"] <- 0
+pv3[tt$pec_m4=="CAMSP"] <- 0
+pv3[tt$pec_m12=="CAMSP"] <- 0
+pv <- pv1 + pv2 + pv3
+pv <- pv %in% c(3,6)
+nn <- sum(pv)
+pc <- round(100*nn/length(pv))
+ll <- paste0 (nn," (",pc,"%)")
+```
+Les perdus de vue représentent `r ll` des cas.
+
+# Technique
+
+#### Petit paragraphe à copier en fin de *Matériel & Méthode*
+
+Les données discrètes ont été décrites par leur fréquence exprimée en
+pourcentage avec son intervalle de confiance à 95 % et ont été
+comparées par le test du chi2 ou le test exact de Fisher lorsque
+nécessaire. Les intervalles de confiance n'ont été réalisés qu'après
+transformation angulaire. Les données numériques ont été décrites par
+leur moyenne (avec son intervalle de confiance à 95 % calculé par
+bootstrap) et l'écart-type. Les données continues ont été comparées par
+le test de Student après vérification de l'égalité des variances. Les
+analyses multivariées ont été réalisées en régression logistique. Les
+statistiques ont été réalisées grâce au logiciel R[@rstat] avec en particulier les packages du Tidyverse[@tidy].
+
+# References
